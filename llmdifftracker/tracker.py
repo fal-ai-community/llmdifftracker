@@ -48,6 +48,7 @@ class LLMDiffTracker:
         return "\n".join(diff)
 
     def summarize_diff(self, diff_text: str) -> str:
+        diff_text = diff_text[:10000]
         if self.use_fal:
 
             def on_queue_update(update):
@@ -66,7 +67,7 @@ class LLMDiffTracker:
             return result["output"].strip()
         else:
             response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": self.system_prompt},
                     {

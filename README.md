@@ -80,11 +80,11 @@ patch_wandb()
 wandb.init(project="your-project-name")
 ```
 
-## Bro why not use it based on git diffs?
+## Why not use Git diffs?
 
-That is a good question. I would agree that is more accurate. However, researcher's often don't commit their code before running experiments. Reason for this funny: ML researches are somewhat intrinsically 'hisenbuggy': meaning having runnable code does not mean it's better than the previous version, and in many cases it doesn't even mean it's working. This is somewhat different from software engineering, where you typically have specifications and less room for 'tiny, frequent, a-priori-unknowable bug-inducing changes'.
+That is a good question. I would agree that it is more accurate. However, researchers often don't commit their code before running experiments. The reason for this is interesting: ML research is somewhat intrinsically "heisenbugged", meaning having runnable code does not mean it's better than the previous version, and in many cases it doesn't even mean it's working. This is different from software engineering, where you typically have specifications and less room for tiny, frequent, a priori unknowable bug-inducing changes.
 
-Therefore we default to using code diffs instead.
+Therefore, we default to using code diffs instead.
 
 
 ## Requirements
