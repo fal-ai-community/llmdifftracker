@@ -1,43 +1,36 @@
 # llmdifftracker
 
-A Python package that tracks and summarizes code changes using OpenAI's GPT. This tool helps you maintain better documentation of your code changes during development by automatically generating summaries of code modifications. It can be used standalone or integrated with Weights & Biases for experiment tracking.
-
-## Features
-
-- Automatic code change detection
-- LLM-powered change summarization using OpenAI's GPT
-- Optional integration with Weights & Biases for experiment tracking
-- Easy to use with a simple API
+Lightweight package that tracks and summarizes code changes using LLMs (Large Language Models). This tool helps you maintain better documentation of your code changes during development by automatically generating summaries of code modifications. It can be used standalone or integrated with Weights & Biases for experiment tracking.
 
 ## Installation
 
 ### Basic Installation
 ```bash
-pip install git+https://github.com/cloneofsimo/llmdifftracker.git
+pip install git+https://github.com/fal-ai-community/llmdifftracker.git
 ```
 
 ### Installation with Weights & Biases Support
 ```bash
-pip install "git+https://github.com/cloneofsimo/llmdifftracker.git#egg=llmdifftracker[wandb]"
+pip install "git+https://github.com/fal-ai-community/llmdifftracker.git#egg=llmdifftracker[wandb]"
 ```
 
 ## Usage
 
-### Basic Usage (Standalone)
+### Basic Usage with fal-api (Default)
 
 ```python
 from llmdifftracker import LLMDiffTracker
 import os
 
-# Set your OpenAI API key
-os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
+# Set your fal API key
+os.environ["FAL_KEY"] = "your-fal-api-key"
 
 # Initialize the tracker
 tracker = LLMDiffTracker(
-    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=os.getenv("FAL_KEY"),
     cache_dir="./code_dump_cache",  # Where to store code snapshots
     file_pattern="*.py",  # Which files to track
-    system_prompt="Summarize code changes"  # Custom prompt for GPT
+    system_prompt="Summarize code changes"  # Custom prompt for LLM
 )
 
 # Track changes
@@ -49,6 +42,25 @@ if result:
     print("Diff:", diff_text)
 ```
 
+### Using OpenAI Instead
+
+```python
+from llmdifftracker import LLMDiffTracker
+import os
+
+# Set your OpenAI API key
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
+
+# Initialize the tracker with OpenAI
+tracker = LLMDiffTracker(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    use_fal=False,  # Specify to use OpenAI instead of fal-api
+    cache_dir="./code_dump_cache",
+    file_pattern="*.py",
+    system_prompt="Summarize code changes"
+)
+```
+
 ### Integration with Weights & Biases
 
 ```python
@@ -56,7 +68,9 @@ import wandb
 from llmdifftracker import patch_wandb
 import os
 
-# Set your OpenAI API key
+# Set your API key (FAL_KEY takes precedence over OPENAI_API_KEY)
+os.environ["FAL_KEY"] = "your-fal-api-key"
+# or
 os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 
 # Patch wandb.init to automatically track code changes
@@ -66,17 +80,18 @@ patch_wandb()
 wandb.init(project="your-project-name")
 ```
 
-## How it Works
+## Bro why not use it based on git diffs?
 
-1. The package takes a snapshot of your code files
-2. When changes are detected, it generates a diff
-3. The diff is sent to OpenAI's GPT for summarization
-4. The diff and summary are returned (and optionally logged to Weights & Biases)
+That is a good question. I would agree that is more accurate. However, researcher's often don't commit their code before running experiments. Reason for this funny: ML researches are somewhat intrinsically 'hisenbuggy': meaning having runnable code does not mean it's better than the previous version, and in many cases it doesn't even mean it's working. This is somewhat different from software engineering, where you typically have specifications and less room for 'tiny, frequent, a-priori-unknowable bug-inducing changes'.
+
+Therefore we default to using code diffs instead.
+
 
 ## Requirements
 
 - Python 3.6+
-- OpenAI API key
+- fal-api key (recommended) or OpenAI API key
+- `fal-client` package (installed automatically)
 - (Optional) Weights & Biases account
 
 ## License
