@@ -2,7 +2,13 @@ import openai
 import os
 import glob
 import difflib
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
+from pydantic import BaseModel, Field
+
+
+class DiffSummary(BaseModel):
+    diff_summary: str = Field(description="A summary of the code changes.")
+    run_name: Optional[str] = Field(description="A simple name for the run that will be displayed in the UI. Snake case, for example: 'lr_1e-4_bs_128'")
 
 
 class LLMDiffTracker:
@@ -18,7 +24,6 @@ class LLMDiffTracker:
         self.file_pattern = file_pattern
         self.system_prompt = system_prompt
         self.use_fal = use_fal
-
         if use_fal:
             os.environ["FAL_KEY"] = api_key
             import fal_client
@@ -64,9 +69,9 @@ class LLMDiffTracker:
                 with_logs=True,
                 on_queue_update=on_queue_update,
             )
-            return result["output"].strip()
+            return DiffSummary(diff_summary=result["output"].strip(), run_name=None)
         else:
-            response = self.openai_client.chat.completions.create(
+            response = self.openai_client.beta.chat.completions.parse(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": self.system_prompt},
@@ -75,8 +80,11 @@ class LLMDiffTracker:
                         "content": f"Summarize the following code changes: \n{diff_text}",
                     },
                 ],
+                response_format=DiffSummary,
             )
-            return response.choices[0].message.content.strip()
+            return response.choices[0].message.parsed
+        
+        
 
     def track_changes(self) -> Optional[Tuple[str, str]]:
         """Track code changes and return diff text and summary.
@@ -108,12 +116,13 @@ class LLMDiffTracker:
             print("No code changes detected.")
             return "No code changes detected.", "No code changes detected."
 
+        # only call LLM if there are changes
         summary = self.summarize_diff(diff_text)
 
         return diff_text, summary
 
 
-def patch_wandb():
+def patch_wandb(generate_run_name: bool = True, log_table: bool = True):
     """Patches wandb.init to automatically track and log code changes."""
     try:
         import wandb
@@ -125,18 +134,40 @@ def patch_wandb():
     original_wandb_init = wandb.init
 
     def patched_wandb_init(*args, **kwargs):
-        run = original_wandb_init(*args, **kwargs)
+
         tracker = LLMDiffTracker(
             api_key=os.getenv("FAL_KEY", os.getenv("OPENAI_API_KEY")),
             use_fal="FAL_KEY" in os.environ,
         )
-        result = tracker.track_changes()
 
-        print(result)
+        diff_text, summary = tracker.track_changes()
 
-        if result:
-            diff_text, summary = result
-            wandb.log({"diff_summary": summary, "diff_text": diff_text})
+        # check if the user has provided a notes or name field
+        notes = kwargs.pop("notes", None)
+        run_name = kwargs.pop("name", None)
+
+        # If we get a DiffSummary, we know we called the LLM
+        if isinstance(summary, DiffSummary):
+            if notes is None:
+                notes = ""
+            diff_summary = summary.diff_summary
+            notes = f"\n\ndiff_summary:\n {diff_summary}"
+            notes += f"\n\ndiff_text:\n{diff_text}"
+            if run_name is None:
+                run_name = summary.run_name
+        elif isinstance(summary, str):
+            if notes is None:
+                # always put the diff text in the notes
+                notes = diff_text
+            diff_summary = summary
+
+        run = original_wandb_init(*args, **kwargs, name=run_name, notes=notes)
+
+        # Let's also log to a wandb.Table
+        if log_table:
+            table = wandb.Table(columns=["run_name", "diff_summary", "diff_text"])
+            table.add_data(run.name, diff_summary, diff_text)
+            wandb.log({"Diffs": table})
 
         return run
 
