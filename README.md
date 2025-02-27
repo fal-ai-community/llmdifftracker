@@ -74,11 +74,20 @@ os.environ["FAL_KEY"] = "your-fal-api-key"
 os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 
 # Patch wandb.init to automatically track code changes
-patch_wandb()
+# generate_run_name=True will generate a run name based on the code changes
+patch_wandb(generate_run_name=True)
 
 # Now, every time you call wandb.init(), code changes will be tracked
 wandb.init(project="your-project-name")
 ```
+
+### Example
+
+The diff will be available in the overview page of the run.
+
+![images/wandb_overview.png](images/wandb_overview.png) 
+
+We also log the diff to a `wandb.Table`, which you can see in the workspace page.
 
 ## Why not use Git diffs?
 
